@@ -1,0 +1,67 @@
+---
+title: "Fetch forest data from Statistics Finland"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Data was downloaded (by hand, API was not found) from [VMI laskentapalvelu](https://vmilapa.luke.fi/#/compute) (Valtakunnallinen mets??inventaari), and the data was from years 2009-2013. Parameters for the data download: forest area, tree volume, and tree number were searchded for 20-year age groups, areas categorised by the main tree species, seach including both forests and kitumaa (poorly growing areas), and using district levels.
+
+```{r}
+library(tidyverse)
+library(plotly)
+library(OpasnetUtils)
+# library(devtools)
+# install_github("rOpenGov/statfi") # If not installed yet
+
+#library(statfi) statfi is outdated. Use package pxweb instead.
+
+parms <- data.frame(
+  File = c(
+    "ID1557142456655.csv",
+    "ID1557142551382.csv",
+    "ID1557142710762.csv"
+  ),
+  Variable = c("Pintaala","Runkoluku","Tilavuus"),
+  Unit= c("km2","1000kpl","1000m3")
+)
+dat <- data.frame()
+for(i in 1:nrow(parms)) {
+  tmp <- read.csv(paste0("C:/Users/jtue/AppData/Local/Temp/Data-",parms$File[i]),
+                header=TRUE, sep=";", skip=3,encoding = "UTF-8")
+  colnames(tmp) <- c("Maakunta","Ikaluokka","Paapuulaji","Tulos","Keskivirhe","Suht_keskivirhe")
+  for(j in 4:6) {tmp[[j]][is.na(tmp[[j]])] <- 0}
+  dat <- rbind(dat, cbind(tmp, parms[i, 2:3]))
+}  
+dat$Ikaluokka <- factor(dat$Ikaluokka, levels=c("Puuton","1-20","21-40","41-60","61-80","81-100",
+                                                "101-120","121-140","141-160","161+"))
+dat$Maakunta <- factor(dat$Maakunta, levels=unique(dat$Maakunta))
+dat$Alue <- ifelse(as.numeric(dat$Maakunta) %in% 15:18, "Pohjois-Suomi", "Etel??-Suomi")
+
+ggplot(dat[dat$Variable=="Tilavuus" , ], aes(x=Ikaluokka, weight=Tulos, fill=Maakunta))+geom_bar()+
+  facet_grid(.~Alue)
+```
+
+```{r}
+
+tmp <- dat[dat$Variable=="Tilavuus",]
+tmp <- aggregate(tmp["Tulos"], tmp[c("Alue","Ikaluokka")], sum)
+pl <- tmp %>%
+#  group_by(Alue) %>%
+  plot_ly(x=~Ikaluokka, y=~Tulos/1000, color=~Alue, type="bar") %>%
+  layout(
+#    barmode="group",
+    yaxis=list(title="Puuston tilavuus (M m3)")
+  )
+pl
+# pushIndicatorGraph(pl, 124) # Does not work due to an unknown error
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
