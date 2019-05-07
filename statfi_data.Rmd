@@ -7,38 +7,16 @@ output:
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
-Data was downloaded (by hand, API was not found) from [VMI laskentapalvelu](https://vmilapa.luke.fi/#/compute) (Valtakunnallinen mets??inventaari), and the data was from years 2009-2013. Parameters for the data download: forest area, tree volume, and tree number were searchded for 20-year age groups, areas categorised by the main tree species, seach including both forests and kitumaa (poorly growing areas), and using district levels.
+Data was downloaded (by hand, API was not found) from [VMI laskentapalvelu](https://vmilapa.luke.fi/#/compute) (Valtakunnallinen metsäinventaari), and the data was from years 2009-2013. Parameters for the data download: forest area, tree volume, and tree number were searchded for 20-year age groups, areas categorised by the main tree species, seach including both forests and kitumaa (poorly growing areas), and using district levels.
 
 ```{r}
 library(tidyverse)
 library(plotly)
 library(OpasnetUtils)
-# library(devtools)
-# install_github("rOpenGov/statfi") # If not installed yet
+library(quiltr)
 
-#library(statfi) statfi is outdated. Use package pxweb instead.
-
-parms <- data.frame(
-  File = c(
-    "ID1557142456655.csv",
-    "ID1557142551382.csv",
-    "ID1557142710762.csv"
-  ),
-  Variable = c("Pintaala","Runkoluku","Tilavuus"),
-  Unit= c("km2","1000kpl","1000m3")
-)
-dat <- data.frame()
-for(i in 1:nrow(parms)) {
-  tmp <- read.csv(paste0("C:/Users/jtue/AppData/Local/Temp/Data-",parms$File[i]),
-                header=TRUE, sep=";", skip=3,encoding = "UTF-8")
-  colnames(tmp) <- c("Maakunta","Ikaluokka","Paapuulaji","Tulos","Keskivirhe","Suht_keskivirhe")
-  for(j in 4:6) {tmp[[j]][is.na(tmp[[j]])] <- 0}
-  dat <- rbind(dat, cbind(tmp, parms[i, 2:3]))
-}  
-dat$Ikaluokka <- factor(dat$Ikaluokka, levels=c("Puuton","1-20","21-40","41-60","61-80","81-100",
-                                                "101-120","121-140","141-160","161+"))
-dat$Maakunta <- factor(dat$Maakunta, levels=unique(dat$Maakunta))
-dat$Alue <- ifelse(as.numeric(dat$Maakunta) %in% 15:18, "Pohjois-Suomi", "Etel??-Suomi")
+# qinstall("jtuomsto/luketest") # This is needed if you have not downloaded anything from this package before
+dat <- qload("jtuomsto/luketest", "forests")
 
 ggplot(dat[dat$Variable=="Tilavuus" , ], aes(x=Ikaluokka, weight=Tulos, fill=Maakunta))+geom_bar()+
   facet_grid(.~Alue)
